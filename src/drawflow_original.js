@@ -1,4 +1,4 @@
-class Drawflow {
+export default class Drawflow {
   constructor(container, render = null, parent = null) {
     this.events = {};
     this.container = container;
@@ -1878,56 +1878,6 @@ class Drawflow {
     this.precanvas.innerHTML = "";
     this.drawflow = { "drawflow": { "Home": { "data": {} }}};
   }
-  exportConnectionsAsText() {
-    const moduleData = this.drawflow.drawflow[this.module].data;
-    const nodes = Object.values(moduleData);
-    const adj = new Map();
-    const nodeMap = new Map(nodes.map(node => [node.id.toString(), node]));
-    const inDegree = new Map(nodes.map(node => [node.id.toString(), 0]));
-
-    // Build adjacency list and in-degrees
-    for (const node of nodes) {
-      adj.set(node.id.toString(), []);
-      if (node.outputs) {
-        for (const outputName in node.outputs) {
-          const output = node.outputs[outputName];
-          if (output.connections) {
-            for (const connection of output.connections) {
-              const connectedNodeId = connection.node;
-              adj.get(node.id.toString()).push(connectedNodeId);
-              inDegree.set(connectedNodeId, (inDegree.get(connectedNodeId) || 0) + 1);
-            }
-          }
-        }
-      }
-    }
-
-    // Find starting nodes (in-degree 0)
-    const startNodes = nodes.filter(node => inDegree.get(node.id.toString()) === 0).map(node => node.id.toString());
-
-    let allPaths = [];
-
-    function dfs(nodeId, path) {
-      const newPath = [...path, nodeMap.get(nodeId).name + `(${nodeId})`];
-      const neighbors = adj.get(nodeId) || [];
-
-      if (neighbors.length === 0) {
-        allPaths.push(newPath.join(' -> '));
-        return;
-      }
-
-      for (const neighborId of neighbors) {
-        dfs(neighborId, newPath);
-      }
-    }
-
-    for (const startNodeId of startNodes) {
-      dfs(startNodeId, []);
-    }
-
-    return allPaths.join('\n');
-  }
-
   export () {
     const dataExport = JSON.parse(JSON.stringify(this.drawflow));
     this.dispatch('export', dataExport);
