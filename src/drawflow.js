@@ -1878,6 +1878,7 @@ class Drawflow {
     this.precanvas.innerHTML = "";
     this.drawflow = { "drawflow": { "Home": { "data": {} }}};
   }
+
   exportConnectionsAsText() {
     const moduleData = this.drawflow.drawflow[this.module].data;
     const nodes = Object.values(moduleData);
@@ -1932,6 +1933,118 @@ class Drawflow {
     const dataExport = JSON.parse(JSON.stringify(this.drawflow));
     this.dispatch('export', dataExport);
     return dataExport;
+  }
+
+  validateGraph() {
+      const nodes = this.export().drawflow[this.module].data;
+      let startNodeCount = 0;
+      let endNodeCount = 0;
+      let startNodeOutputConnections = 0;
+      let endNodeHasInput = false;
+      let endNodeHasOutput = false;
+      let invalidNodes = [];
+
+      for (const key in nodes) {
+          const node = nodes[key];
+
+          if (node.name === 'start') {
+              startNodeCount++;
+              for (const outputKey in node.outputs) {
+                  startNodeOutputConnections += node.outputs[outputKey].connections.length;
+              }
+          }
+
+          if (node.name === 'end') {
+              endNodeCount++;
+              for (const inputKey in node.inputs) {
+                  if (node.inputs[inputKey].connections.length > 0) {
+                      endNodeHasInput = true;
+                  }
+              }
+              for (const outputKey in node.outputs) {
+                  if (node.outputs[outputKey].connections.length > 0) {
+                      endNodeHasOutput = true;
+                      break;
+                  }
+              }
+          }
+
+          if (node.name !== 'start' && node.name !== 'end') {
+              let hasInputs = false;
+              for (const inputKey in node.inputs) {
+                  if (node.inputs[inputKey].connections.length > 0) {
+                      hasInputs = true;
+                      break;
+                  }
+              }
+              if (!hasInputs && Object.keys(node.inputs).length > 0) {
+                  invalidNodes.push(node.id);
+              }
+          }
+      }
+
+      if (startNodeCount !== 1) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Invalid Flow',
+              text: `There must be exactly one Start node, but found ${startNodeCount}.`,
+          });
+          return false;
+      }
+
+      if (endNodeCount === 0) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Invalid Flow',
+              text: `There must be at least one End node.`,
+          });
+          return false;
+      }
+
+      if (startNodeOutputConnections !== 1) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Invalid Flow',
+              text: `The Start node must have exactly one output connection.`,
+          });
+          return false;
+      }
+
+      if (!endNodeHasInput) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Invalid Flow',
+              text: `The End node must have an incoming connection.`,
+          });
+          return false;
+      }
+
+      if (endNodeHasOutput) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Invalid Flow',
+              text: `The End node cannot have an outgoing connection.`,
+          });
+          return false;
+      }
+
+      if (invalidNodes.length > 0) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Invalid Flow',
+              text: `Nodes ${invalidNodes.join(', ')} must have an incoming connection.`,
+          });
+          return false;
+      }
+
+      Swal.fire('Success', 'Flow is valid', 'success');
+      return true;
+  }
+
+  exportConnectBeforeValid() {
+    if (this.validateGraph()) {
+        Swal.fire({ title: 'Connections', html: '<pre><code>'+this.exportConnectionsAsText()+'</code></pre>' });
+    }
   }
 
   import (data, notifi = true) {
@@ -2001,3 +2114,5 @@ class Drawflow {
         return uuid;
     }
 }
+
+
